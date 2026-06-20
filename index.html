@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>代煮魚湯記錄</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC',sans-serif;font-size:14px;background:#f5f5f5;color:#1a1a1a}
+.app{max-width:480px;margin:0 auto;background:#fff;min-height:100vh}
+.page{display:none}.page.active{display:block}
+
+/* nav */
+.nav{display:flex;border-bottom:1px solid #e8e8e8;position:sticky;top:0;background:#fff;z-index:10}
+.nav-btn{flex:1;padding:12px 4px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:12px;color:#888;transition:.15s}
+.nav-btn.active{border-bottom-color:#0F6E56;color:#0F6E56;font-weight:600}
+
+/* modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200}
+.modal-box{background:#fff;border-radius:16px;padding:28px 24px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,.15)}
+.modal-box h2{font-size:16px;font-weight:600;margin-bottom:6px}
+.modal-box p{font-size:12px;color:#888;margin-bottom:16px}
+.modal-box input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:10px;font-size:15px;margin-bottom:12px;outline:none}
+.modal-box input:focus{border-color:#0F6E56}
+.modal-box .modal-btn{width:100%;padding:11px;background:#0F6E56;color:#fff;border:none;border-radius:10px;font-size:15px;cursor:pointer;font-weight:600}
+
+/* edit modal */
+.edit-modal{background:#fff;border-radius:16px;padding:24px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,.15);max-height:90vh;overflow-y:auto}
+.edit-modal h3{font-size:15px;font-weight:600;margin-bottom:16px;color:#1a1a1a}
+.edit-modal .form-group{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.edit-modal .form-group label{font-size:11px;color:#888;font-weight:500}
+.edit-modal .form-group input,.edit-modal .form-group select{padding:9px 12px;border:1px solid #ddd;border-radius:10px;font-size:14px;outline:none}
+.edit-modal .form-group input:focus,.edit-modal .form-group select:focus{border-color:#0F6E56}
+.edit-modal .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+.edit-modal .btn-cancel{padding:10px;border:1px solid #ddd;border-radius:10px;background:#fff;cursor:pointer;font-size:14px;color:#555}
+.edit-modal .btn-save{padding:10px;border:none;border-radius:10px;background:#0F6E56;color:#fff;cursor:pointer;font-size:14px;font-weight:600}
+
+/* page body */
+.page-body{padding:14px}
+
+/* user bar */
+.user-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding:10px 12px;background:#f0faf6;border-radius:12px;border:1px solid #d0ead8}
+.user-bar span{font-size:12px;color:#555}
+.user-bar strong{color:#0F6E56;font-weight:600}
+.user-bar button{font-size:11px;padding:4px 10px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;color:#666}
+
+/* date picker */
+.date-picker-wrap{margin-bottom:14px;background:#fff;border:1px solid #e8e8e8;border-radius:14px;padding:12px 14px}
+.dp-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.dp-label{font-size:13px;font-weight:600;color:#1a1a1a}
+.dp-today-btn{font-size:11px;padding:4px 12px;border:1px solid #0F6E56;border-radius:8px;background:#fff;cursor:pointer;color:#0F6E56;font-weight:600}
+.dp-selectors{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.dp-select{font-size:13px;padding:8px 6px;border:1px solid #ddd;border-radius:10px;background:#fff;color:#1a1a1a;width:100%;cursor:pointer;text-align:center}
+
+/* stats */
+.stats-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.stat-card{background:#f8f8f8;border-radius:12px;padding:12px 14px}
+.stat-label{font-size:11px;color:#888;margin-bottom:4px}
+.stat-value{font-size:20px;font-weight:700;color:#1a1a1a}
+
+/* add panel */
+.add-panel{background:#fff;border:1px solid #e8e8e8;border-radius:14px;padding:16px;margin-bottom:14px}
+.add-panel h3{font-size:11px;font-weight:600;color:#888;margin-bottom:12px;text-transform:uppercase;letter-spacing:.08em}
+.form-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:10px}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group label{font-size:11px;color:#888;font-weight:500}
+.form-group input,.form-group select{font-size:14px;padding:9px 12px;border:1px solid #ddd;border-radius:10px;background:#fff;color:#1a1a1a;width:100%;outline:none}
+.form-group input:focus,.form-group select:focus{border-color:#0F6E56}
+.add-btn{width:100%;padding:12px;background:#0F6E56;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;margin-top:4px;transition:.15s}
+.add-btn:hover{background:#085041}
+.add-btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* records */
+.records-section h3{font-size:11px;font-weight:600;color:#888;margin-bottom:10px;text-transform:uppercase;letter-spacing:.08em}
+.sync-bar{font-size:12px;text-align:center;padding:7px 12px;border-radius:10px;margin-bottom:10px}
+.sync-bar.loading{background:#f0f0f0;color:#888}
+.sync-bar.ok{background:#e6f7f0;color:#0F6E56;font-weight:500}
+.sync-bar.err{background:#fef0f0;color:#c0392b;font-weight:500}
+
+.record-item{background:#fff;border:1px solid #e8e8e8;border-radius:14px;padding:13px 14px;margin-bottom:8px;position:relative}
+.record-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.record-fish{font-size:15px;font-weight:600;color:#1a1a1a}
+.record-meta{display:flex;align-items:center;gap:6px}
+.flavor-tag{padding:3px 9px;border-radius:8px;font-size:11px;font-weight:600}
+.ft-ginger{background:#e6f7f0;color:#0F6E56}
+.ft-miso{background:#fef8ec;color:#b7800a}
+.record-time{font-size:11px;color:#aaa}
+.record-details{display:flex;gap:12px;font-size:12px;color:#888;margin-bottom:5px}
+.record-details span{color:#1a1a1a;font-weight:600}
+.record-footer{display:flex;align-items:center;justify-content:space-between}
+.record-staff{font-size:11px;color:#aaa}
+.record-actions{display:flex;gap:6px}
+.edit-btn,.del-btn{font-size:11px;padding:3px 10px;border-radius:8px;cursor:pointer;font-weight:500;border:none}
+.edit-btn{background:#f0f0f0;color:#555}
+.edit-btn:hover{background:#e0e0e0}
+.del-btn{background:#fef0f0;color:#c0392b}
+.del-btn:hover{background:#fdd}
+.btn-disabled{opacity:.35;cursor:not-allowed!important}
+
+.empty{text-align:center;padding:32px 0;color:#aaa;font-size:13px}
+
+/* report / rank */
+.report-body,.rank-body{padding:14px}
+.range-shortcuts{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.shortcut-btn{padding:6px 14px;border:1px solid #ddd;border-radius:10px;background:#fff;cursor:pointer;font-size:12px;color:#666;font-weight:500}
+.shortcut-btn.active{background:#e6f7f0;border-color:#0F6E56;color:#0F6E56;font-weight:600}
+.range-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.update-btn{width:100%;padding:11px;background:#0F6E56;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:14px}
+
+.summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.big-stat{background:#f8f8f8;border-radius:12px;padding:12px 14px}
+.big-stat .lbl{font-size:11px;color:#888;margin-bottom:4px}
+.big-stat .val{font-size:20px;font-weight:700;color:#1a1a1a}
+.section-title{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;margin-top:16px}
+
+.flavor-breakdown{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.flavor-card{background:#fff;border:1px solid #e8e8e8;border-radius:14px;padding:14px}
+.flavor-card .fc-cnt{font-size:22px;font-weight:700;color:#1a1a1a}
+.flavor-card .fc-sub{font-size:11px;color:#888;margin-top:3px}
+
+.chart-wrap{background:#fff;border:1px solid #e8e8e8;border-radius:14px;padding:14px;margin-bottom:14px;overflow:hidden}
+canvas{width:100%!important}
+
+.detail-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+.detail-table th{text-align:left;font-weight:600;font-size:11px;color:#888;padding:5px 7px;border-bottom:1px solid #eee}
+.detail-table td{padding:8px 7px;border-bottom:1px solid #f0f0f0;color:#1a1a1a}
+.detail-table tr:last-child td{border-bottom:none}
+
+/* rank */
+.sort-tabs{display:flex;gap:6px;margin-bottom:12px}
+.sort-tab{padding:5px 14px;border:1px solid #ddd;border-radius:10px;background:#fff;cursor:pointer;font-size:12px;color:#666;font-weight:500}
+.sort-tab.active{background:#e6f7f0;border-color:#0F6E56;color:#0F6E56;font-weight:600}
+
+.rank-item{background:#fff;border:1px solid #e8e8e8;border-radius:14px;padding:14px;margin-bottom:8px;cursor:pointer;transition:border-color .15s}
+.rank-item:hover,.rank-item.expanded{border-color:#0F6E56}
+.rank-row{display:flex;align-items:center;gap:12px}
+.rank-no{font-size:13px;font-weight:600;color:#aaa;min-width:24px;text-align:center}
+.rank-no.top1{font-size:18px}.rank-no.top2{font-size:16px}.rank-no.top3{font-size:15px}
+.rank-info{flex:1;min-width:0}
+.rank-fish{font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:5px}
+.rank-bar-wrap{height:5px;background:#f0f0f0;border-radius:3px;overflow:hidden;margin-bottom:5px}
+.rank-bar{height:5px;background:#1D9E75;border-radius:3px}
+.rank-sub{font-size:11px;color:#aaa;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.rank-nums{text-align:right;flex-shrink:0}
+.rank-cnt{font-size:18px;font-weight:700;color:#1a1a1a}
+.rank-cnt-lbl{font-size:10px;color:#aaa}
+.expand-arrow{font-size:12px;color:#aaa;transition:transform .2s}
+.rank-item.expanded .expand-arrow{transform:rotate(180deg)}
+.detail-panel{display:none;margin-top:14px;padding-top:14px;border-top:1px solid #f0f0f0}
+.rank-item.expanded .detail-panel{display:block}
+.detail-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-bottom:10px}
+.detail-stat{background:#f8f8f8;border-radius:10px;padding:8px;text-align:center}
+.detail-stat .ds-val{font-size:14px;font-weight:700;color:#1a1a1a}
+.detail-stat .ds-lbl{font-size:10px;color:#aaa;margin-top:2px}
+.detail-flavor{display:flex;gap:7px}
+.detail-flavor-bar{flex:1;background:#f8f8f8;border-radius:10px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between}
+.df-val{font-size:13px;font-weight:600;color:#1a1a1a}
+
+/* toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:10px 20px;border-radius:12px;font-size:13px;opacity:0;transition:opacity .3s;z-index:300;pointer-events:none;white-space:nowrap;font-weight:500}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Name Modal -->
+  <div class="modal-overlay" id="nameModal">
+    <div class="modal-box">
+      <h2>代煮魚湯紀錄表</h2>
+      <input type="text" id="nameInput" placeholder="輸入職號" maxlength="10" inputmode="numeric">
+      <button class="modal-btn" onclick="saveName()">開始記錄</button>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal-overlay" id="editModal" style="display:none">
+    <div class="edit-modal">
+      <h3>修改記錄</h3>
+      <input type="hidden" id="editId">
+      <input type="hidden" id="editStaff">
+      <div class="form-group">
+        <label>魚種</label>
+        <input type="text" id="editFish">
+      </div>
+      <div class="form-group">
+        <label>口味</label>
+        <select id="editFlavor">
+          <option value="ginger">薑絲</option>
+          <option value="miso">味噌</option>
+        </select>
+      </div>
+      <div class="form-group"><label>重量（g）</label><input type="number" id="editWeight" min="0"></div>
+      <div class="form-group"><label>魚貨金額（元）</label><input type="number" id="editAmount" min="0"></div>
+      <div class="form-group"><label>代煮費（元）</label><input type="number" id="editCookFee" min="0"></div>
+      <div class="btn-row">
+        <button class="btn-cancel" onclick="closeEditModal()">取消</button>
+        <button class="btn-save" id="editSaveBtn" onclick="saveEdit()">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <div class="nav">
+    <button class="nav-btn active" onclick="showPage('record',this)">記錄</button>
+    <button class="nav-btn" onclick="showPage('report',this)">報表</button>
+    <button class="nav-btn" onclick="showPage('rank',this)">魚種排行</button>
+  </div>
+
+  <!-- ── Record Page ── -->
+  <div class="page active" id="page-record">
+    <div class="page-body">
+      <div class="user-bar">
+        <span>職號：<strong id="curUserDisplay">—</strong></span>
+        <button onclick="changeName()">修改</button>
+      </div>
+
+      <div class="date-picker-wrap">
+        <div class="dp-top">
+          <span class="dp-label" id="dpLabel"></span>
+          <button class="dp-today-btn" onclick="goToday()">今天</button>
+        </div>
+        <div class="dp-selectors">
+          <select id="dpYear" onchange="onDpChange()"></select>
+          <select id="dpMonth" onchange="onDpChange()"></select>
+          <select id="dpDay" onchange="onDpChange()"></select>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-label">當日筆數</div><div class="stat-value" id="sCount">0</div></div>
+        <div class="stat-card"><div class="stat-label">總代煮費</div><div class="stat-value" id="sFee">$0</div></div>
+        <div class="stat-card"><div class="stat-label">魚貨金額</div><div class="stat-value" id="sAmt">$0</div></div>
+        <div class="stat-card"><div class="stat-label">總重量</div><div class="stat-value" id="sWt">0g</div></div>
+      </div>
+
+      <div class="add-panel">
+        <h3>新增記錄</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>魚種</label>
+            <input type="text" id="fishName" placeholder="輸入魚種">
+          </div>
+          <div class="form-group">
+            <label>口味</label>
+            <select id="flavor">
+              <option value="ginger">薑絲</option>
+              <option value="miso">味噌</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>重量（g）</label><input type="number" id="weight" placeholder="0" min="0"></div>
+          <div class="form-group"><label>魚貨金額（元）</label><input type="number" id="amount" placeholder="0" min="0"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>代煮費（元）</label><input type="number" id="cookFee" placeholder="0" min="0"></div>
+          <div class="form-group"></div>
+        </div>
+        <button class="add-btn" id="addBtn" onclick="addRecord()">新增這筆</button>
+      </div>
+
+      <div class="records-section">
+        <h3>當日明細</h3>
+        <div id="syncBar" class="sync-bar" style="display:none"></div>
+        <div id="recordsList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Report Page ── -->
+  <div class="page" id="page-report">
+    <div class="report-body">
+      <div class="range-shortcuts" id="report-shortcuts">
+        <button class="shortcut-btn" onclick="setRange('r',7,this,'report-shortcuts')">近 7 天</button>
+        <button class="shortcut-btn active" onclick="setRange('r',30,this,'report-shortcuts')">近 30 天</button>
+        <button class="shortcut-btn" onclick="setRange('r',90,this,'report-shortcuts')">近 90 天</button>
+      </div>
+      <div class="range-row">
+        <div class="form-group"><label>開始日期</label><input type="date" id="rFrom"></div>
+        <div class="form-group"><label>結束日期</label><input type="date" id="rTo"></div>
+      </div>
+      <button class="update-btn" onclick="buildReport()">更新報表</button>
+      <div id="reportSyncBar" class="sync-bar" style="display:none"></div>
+
+      <div class="summary-grid">
+        <div class="big-stat"><div class="lbl">總筆數</div><div class="val" id="rCount">—</div></div>
+        <div class="big-stat"><div class="lbl">總代煮費</div><div class="val" id="rFee">—</div></div>
+        <div class="big-stat"><div class="lbl">總魚貨金額</div><div class="val" id="rAmt">—</div></div>
+        <div class="big-stat"><div class="lbl">總重量</div><div class="val" id="rWt">—</div></div>
+      </div>
+
+      <div class="flavor-breakdown">
+        <div class="flavor-card">
+          <div class="flavor-tag ft-ginger" style="display:inline-block;margin-bottom:10px">薑絲</div>
+          <div class="fc-cnt" id="rGingerCnt">—</div>
+          <div class="fc-sub" id="rGingerFee">代煮費 —</div>
+        </div>
+        <div class="flavor-card">
+          <div class="flavor-tag ft-miso" style="display:inline-block;margin-bottom:10px">味噌</div>
+          <div class="fc-cnt" id="rMisoCnt">—</div>
+          <div class="fc-sub" id="rMisoFee">代煮費 —</div>
+        </div>
+      </div>
+
+      <div class="section-title">每日代煮費趨勢</div>
+      <div class="chart-wrap"><canvas id="trendChart" height="160"></canvas></div>
+
+      <div class="section-title">每日明細</div>
+      <div class="chart-wrap" style="padding:8px;overflow-x:auto">
+        <table class="detail-table">
+          <thead><tr><th>日期</th><th>筆數</th><th>魚貨</th><th>代煮費</th><th>重量</th></tr></thead>
+          <tbody id="dailyBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Rank Page ── -->
+  <div class="page" id="page-rank">
+    <div class="rank-body">
+      <div class="range-shortcuts" id="rank-shortcuts">
+        <button class="shortcut-btn" onclick="setRange('rk',7,this,'rank-shortcuts')">近 7 天</button>
+        <button class="shortcut-btn active" onclick="setRange('rk',30,this,'rank-shortcuts')">近 30 天</button>
+        <button class="shortcut-btn" onclick="setRange('rk',90,this,'rank-shortcuts')">近 90 天</button>
+      </div>
+      <div class="range-row">
+        <div class="form-group"><label>開始日期</label><input type="date" id="rkFrom"></div>
+        <div class="form-group"><label>結束日期</label><input type="date" id="rkTo"></div>
+      </div>
+      <div class="summary-grid" style="margin-bottom:10px">
+        <div class="big-stat"><div class="lbl">總筆數</div><div class="val" id="rkTotalCnt">—</div></div>
+        <div class="big-stat"><div class="lbl">魚種數</div><div class="val" id="rkFishTypes">—</div></div>
+        <div class="big-stat"><div class="lbl">總重量</div><div class="val" id="rkTotalWt">—</div></div>
+        <div class="big-stat"><div class="lbl">總魚貨金額</div><div class="val" id="rkTotalAmt">—</div></div>
+      </div>
+      <div class="section-title">前三名每日筆數趨勢</div>
+      <div class="chart-wrap"><canvas id="rankTrendChart" height="160"></canvas></div>
+      <div class="sort-tabs">
+        <button class="sort-tab active" onclick="setSortTab('cnt',this)">依筆數</button>
+        <button class="sort-tab" onclick="setSortTab('weight',this)">依重量</button>
+        <button class="sort-tab" onclick="setSortTab('amount',this)">依金額</button>
+      </div>
+      <button class="update-btn" onclick="buildRank()">更新排行</button>
+      <div id="rankSyncBar" class="sync-bar" style="display:none"></div>
+      <div id="rankList"></div>
+    </div>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxwFAfdo6cLKmgBkGlJGUsEKIUtr2RC4HUP_9x9D_kHMcLU6mcHqsU1YTiNSVUiYFtYtw/exec';
+const PALETTE = ['#1D9E75','#5DCAA5','#FAC775','#378ADD','#D85A30','#7F77DD'];
+
+let currentUser = '';
+let currentDate = new Date(); currentDate.setHours(0,0,0,0);
+let cachedRecords = {};
+let trendChartInst = null, rankTrendChartInst = null;
+let currentSortKey = 'cnt', expandedFish = null;
+
+/* ── API ── */
+async function gasPost(payload) {
+  const res = await fetch(GAS_URL, { method:'POST', body:JSON.stringify(payload) });
+  return res.json();
+}
+async function gasQuery(from, to) {
+  const res = await fetch(`${GAS_URL}?action=query&from=${from}&to=${to}`);
+  return res.json();
+}
+
+/* ── Date picker ── */
+function getDateKey(d) { return d.toISOString().split('T')[0]; }
+
+function buildDpSelects() {
+  const now = new Date();
+  const yEl = document.getElementById('dpYear');
+  const mEl = document.getElementById('dpMonth');
+  yEl.innerHTML = '';
+  for (let y = now.getFullYear()-2; y <= now.getFullYear(); y++) {
+    const o = document.createElement('option'); o.value=y; o.textContent=y+'年'; yEl.appendChild(o);
+  }
+  yEl.value = currentDate.getFullYear();
+  mEl.innerHTML = '';
+  for (let m = 1; m <= 12; m++) {
+    const o = document.createElement('option'); o.value=m; o.textContent=m+'月'; mEl.appendChild(o);
+  }
+  mEl.value = currentDate.getMonth()+1;
+  fillDays();
+  document.getElementById('dpDay').value = currentDate.getDate();
+  updateDpLabel();
+}
+
+function fillDays() {
+  const y = parseInt(document.getElementById('dpYear').value);
+  const m = parseInt(document.getElementById('dpMonth').value);
+  const dim = new Date(y, m, 0).getDate();
+  const dEl = document.getElementById('dpDay');
+  const prev = parseInt(dEl.value)||1;
+  dEl.innerHTML = '';
+  for (let d = 1; d <= dim; d++) {
+    const o = document.createElement('option'); o.value=d; o.textContent=d+'日'; dEl.appendChild(o);
+  }
+  dEl.value = Math.min(prev, dim);
+}
+
+function onDpChange() {
+  fillDays();
+  const y = parseInt(document.getElementById('dpYear').value);
+  const m = parseInt(document.getElementById('dpMonth').value)-1;
+  const d = parseInt(document.getElementById('dpDay').value);
+  currentDate = new Date(y, m, d); currentDate.setHours(0,0,0,0);
+  updateDpLabel();
+  loadDayRecords();
+}
+
+function updateDpLabel() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = (currentDate-today)/86400000;
+  const wd = ['日','一','二','三','四','五','六'][currentDate.getDay()];
+  let s = `（週${wd}）`;
+  if (diff===0) s='（今天）'; else if (diff===-1) s='（昨天）';
+  document.getElementById('dpLabel').textContent =
+    `${currentDate.getFullYear()}/${currentDate.getMonth()+1}/${currentDate.getDate()} ${s}`;
+}
+
+function goToday() {
+  currentDate = new Date(); currentDate.setHours(0,0,0,0);
+  document.getElementById('dpYear').value = currentDate.getFullYear();
+  document.getElementById('dpMonth').value = currentDate.getMonth()+1;
+  fillDays();
+  document.getElementById('dpDay').value = currentDate.getDate();
+  updateDpLabel();
+  loadDayRecords();
+}
+
+/* ── Pages ── */
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  btn.classList.add('active');
+  if (name==='report') { setRange('r',30,null,'report-shortcuts'); buildReport(); }
+  if (name==='rank')   { setRange('rk',30,null,'rank-shortcuts'); buildRank(); }
+}
+
+/* ── Name ── */
+function saveName() {
+  const n = document.getElementById('nameInput').value.trim(); if(!n) return;
+  currentUser = n;
+  try{ localStorage.setItem('fishuser',n); }catch(e){}
+  document.getElementById('nameModal').style.display = 'none';
+  document.getElementById('curUserDisplay').textContent = n;
+}
+function changeName() {
+  document.getElementById('nameInput').value = currentUser;
+  document.getElementById('nameModal').style.display = 'flex';
+}
+
+/* ── Sync bar ── */
+function setSyncBar(id, state, msg) {
+  const el = document.getElementById(id);
+  el.style.display = 'block';
+  el.className = 'sync-bar ' + state;
+  el.textContent = msg;
+  if (state==='ok') setTimeout(()=>el.style.display='none', 2000);
+}
+
+/* ── Load & render ── */
+async function loadDayRecords() {
+  const key = getDateKey(currentDate);
+  setSyncBar('syncBar','loading','載入中...');
+  try {
+    const data = await gasQuery(key, key);
+    if (data.ok) {
+      cachedRecords[key] = data.records || [];
+      setSyncBar('syncBar','ok','已同步 ✓');
+      renderRecord();
+    } else { setSyncBar('syncBar','err','載入失敗'); }
+  } catch(e) { setSyncBar('syncBar','err','網路錯誤，請重試'); }
+}
+
+function renderRecord() {
+  const key = getDateKey(currentDate);
+  const recs = (cachedRecords[key]||[]).slice().reverse();
+  document.getElementById('sCount').textContent = recs.length;
+  document.getElementById('sFee').textContent = '$'+recs.reduce((s,r)=>s+(r.cookFee||0),0).toLocaleString();
+  document.getElementById('sAmt').textContent = '$'+recs.reduce((s,r)=>s+(r.amount||0),0).toLocaleString();
+  document.getElementById('sWt').textContent  = recs.reduce((s,r)=>s+(r.weight||0),0).toLocaleString()+'g';
+  const list = document.getElementById('recordsList');
+  if (!recs.length) { list.innerHTML='<div class="empty">這天尚無記錄</div>'; return; }
+  list.innerHTML = recs.map(r => {
+    const isOwner = r.staff === currentUser;
+    const editCls = isOwner ? 'edit-btn' : 'edit-btn btn-disabled';
+    const delCls  = isOwner ? 'del-btn'  : 'del-btn btn-disabled';
+    const editAct = isOwner ? `openEditModal('${r.id}','${r.fish}','${r.flavor}',${r.weight},${r.amount},${r.cookFee},'${r.staff}')` : "showToast('只有 '+`${r.staff}`+' 才能修改這筆')";
+    const delAct  = isOwner ? `deleteRecord('${r.id}','${key}')` : "showToast('只有 '+`${r.staff}`+' 才能刪除這筆')";
+    return `
+    <div class="record-item">
+      <div class="record-top">
+        <span class="record-fish">${r.fish}</span>
+        <div class="record-meta">
+          <span class="flavor-tag ${r.flavor==='ginger'?'ft-ginger':'ft-miso'}">${r.flavor==='ginger'?'薑絲':'味噌'}</span>
+          <span class="record-time">${r.time||''}</span>
+        </div>
+      </div>
+      <div class="record-details">
+        <div>重量 <span>${(r.weight||0).toLocaleString()}g</span></div>
+        <div>金額 <span>$${(r.amount||0).toLocaleString()}</span></div>
+        <div>代煮費 <span>$${(r.cookFee||0).toLocaleString()}</span></div>
+      </div>
+      <div class="record-footer">
+        <span class="record-staff">記錄：${r.staff||'—'}</span>
+        <div class="record-actions">
+          <button class="${editCls}" onclick="${editAct}">修改</button>
+          <button class="${delCls}" onclick="${delAct}">刪除</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Add ── */
+async function addRecord() {
+  if (!currentUser) { document.getElementById('nameModal').style.display='flex'; return; }
+  const fish = document.getElementById('fishName').value.trim();
+  if (!fish) { showToast('請輸入魚種'); return; }
+  const btn = document.getElementById('addBtn');
+  btn.disabled = true; btn.textContent = '儲存中...';
+  try {
+    const key = getDateKey(currentDate);
+    const data = await gasPost({
+      action:'add', date:key, fish,
+      flavor:  document.getElementById('flavor').value,
+      weight:  parseInt(document.getElementById('weight').value)||0,
+      amount:  parseInt(document.getElementById('amount').value)||0,
+      cookFee: parseInt(document.getElementById('cookFee').value)||0,
+      staff: currentUser,
+      time: new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})
+    });
+    if (data.ok) {
+      ['fishName','weight','amount','cookFee'].forEach(id=>document.getElementById(id).value='');
+      showToast('已新增');
+      await loadDayRecords();
+    } else showToast('新增失敗');
+  } catch(e) { showToast('網路錯誤'); }
+  btn.disabled = false; btn.textContent = '新增這筆';
+}
+
+/* ── Edit modal ── */
+function openEditModal(id, fish, flavor, weight, amount, cookFee, staff) {
+  document.getElementById('editId').value = id;
+  document.getElementById('editStaff').value = staff;
+  document.getElementById('editFish').value = fish;
+  document.getElementById('editFlavor').value = flavor;
+  document.getElementById('editWeight').value = weight;
+  document.getElementById('editAmount').value = amount;
+  document.getElementById('editCookFee').value = cookFee;
+  document.getElementById('editModal').style.display = 'flex';
+}
+function closeEditModal() {
+  document.getElementById('editModal').style.display = 'none';
+}
+async function saveEdit() {
+  const btn = document.getElementById('editSaveBtn');
+  btn.disabled = true; btn.textContent = '儲存中...';
+  try {
+    const data = await gasPost({
+      action:  'update',
+      id:      document.getElementById('editId').value,
+      staff:   document.getElementById('editStaff').value,
+      fish:    document.getElementById('editFish').value.trim(),
+      flavor:  document.getElementById('editFlavor').value,
+      weight:  parseInt(document.getElementById('editWeight').value)||0,
+      amount:  parseInt(document.getElementById('editAmount').value)||0,
+      cookFee: parseInt(document.getElementById('editCookFee').value)||0,
+    });
+    if (data.ok) {
+      closeEditModal();
+      showToast('已修改');
+      await loadDayRecords();
+    } else showToast(data.error || '修改失敗');
+  } catch(e) { showToast('網路錯誤'); }
+  btn.disabled = false; btn.textContent = '儲存';
+}
+
+/* ── Delete ── */
+async function deleteRecord(id, key) {
+  if (!confirm('確定刪除這筆記錄？')) return;
+  try {
+    const data = await gasPost({ action:'delete', id });
+    if (data.ok) { showToast('已刪除'); await loadDayRecords(); }
+    else showToast('刪除失敗');
+  } catch(e) { showToast('網路錯誤'); }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+
+/* ── Range ── */
+function setRange(pfx, days, btn, groupId) {
+  if (btn && groupId) {
+    document.getElementById(groupId).querySelectorAll('.shortcut-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  const to = new Date(); to.setHours(0,0,0,0);
+  const from = new Date(to.getTime()-(days-1)*86400000);
+  document.getElementById(pfx+'From').value = getDateKey(from);
+  document.getElementById(pfx+'To').value   = getDateKey(to);
+}
+
+function getDays(fromStr, toStr) {
+  const fromD = new Date(fromStr+'T00:00:00'), toD = new Date(toStr+'T00:00:00');
+  const days = []; let cur = new Date(fromD);
+  while (cur<=toD) { days.push(getDateKey(cur)); cur=new Date(cur.getTime()+86400000); }
+  return days;
+}
+function groupByDate(records) {
+  const m = {};
+  records.forEach(r=>{ if(!m[r.date]) m[r.date]=[]; m[r.date].push(r); });
+  return m;
+}
+
+/* ── Report ── */
+async function buildReport() {
+  const from = document.getElementById('rFrom').value;
+  const to   = document.getElementById('rTo').value;
+  if (!from||!to) return;
+  setSyncBar('reportSyncBar','loading','載入中...');
+  try {
+    const data = await gasQuery(from, to);
+    if (!data.ok) { setSyncBar('reportSyncBar','err','載入失敗'); return; }
+    setSyncBar('reportSyncBar','ok','已載入 ✓');
+    const recs = data.records||[];
+    const days = getDays(from, to);
+    const byDate = groupByDate(recs);
+    let gC=0,gF=0,mC=0,mF=0;
+    recs.forEach(r=>{ if(r.flavor==='ginger'){gC++;gF+=(r.cookFee||0);}else{mC++;mF+=(r.cookFee||0);} });
+    document.getElementById('rCount').textContent = recs.length;
+    document.getElementById('rFee').textContent   = '$'+recs.reduce((s,r)=>s+(r.cookFee||0),0).toLocaleString();
+    document.getElementById('rAmt').textContent   = '$'+recs.reduce((s,r)=>s+(r.amount||0),0).toLocaleString();
+    document.getElementById('rWt').textContent    = recs.reduce((s,r)=>s+(r.weight||0),0).toLocaleString()+'g';
+    document.getElementById('rGingerCnt').textContent = gC+'單';
+    document.getElementById('rGingerFee').textContent = '代煮費 $'+gF.toLocaleString();
+    document.getElementById('rMisoCnt').textContent   = mC+'單';
+    document.getElementById('rMisoFee').textContent   = '代煮費 $'+mF.toLocaleString();
+    const labels  = days.map(dk=>{ const d=new Date(dk+'T00:00:00'); return (d.getMonth()+1)+'/'+(d.getDate()); });
+    const feeData = days.map(dk=>(byDate[dk]||[]).reduce((s,r)=>s+(r.cookFee||0),0));
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    if (trendChartInst) trendChartInst.destroy();
+    trendChartInst = new Chart(ctx,{ type:'bar', data:{labels,datasets:[{label:'代煮費',data:feeData,backgroundColor:'#1D9E75',borderRadius:4}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:10},maxTicksLimit:14,color:'#aaa'}},y:{grid:{color:'#f0f0f0'},ticks:{font:{size:10},color:'#aaa'}}}} });
+    const active = days.map(dk=>{ const dr=byDate[dk]||[]; return {dk,cnt:dr.length,amt:dr.reduce((s,r)=>s+(r.amount||0),0),fee:dr.reduce((s,r)=>s+(r.cookFee||0),0),wt:dr.reduce((s,r)=>s+(r.weight||0),0)}; }).filter(d=>d.cnt>0).reverse();
+    const tbody = document.getElementById('dailyBody');
+    if (!active.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:14px;color:#aaa">區間內無資料</td></tr>'; return; }
+    tbody.innerHTML = active.map(d=>`<tr><td>${d.dk.slice(5)}</td><td>${d.cnt}</td><td>$${d.amt.toLocaleString()}</td><td>$${d.fee.toLocaleString()}</td><td>${d.wt.toLocaleString()}g</td></tr>`).join('');
+  } catch(e) { setSyncBar('reportSyncBar','err','網路錯誤'); }
+}
+
+/* ── Rank ── */
+function setSortTab(key, btn) {
+  currentSortKey = key;
+  document.querySelectorAll('.sort-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  buildRank();
+}
+function toggleFish(name) {
+  expandedFish = expandedFish===name ? null : name;
+  document.querySelectorAll('.rank-item').forEach(el=>el.classList.toggle('expanded', el.dataset.fish===name&&expandedFish===name));
+}
+
+async function buildRank() {
+  const from = document.getElementById('rkFrom').value;
+  const to   = document.getElementById('rkTo').value;
+  if (!from||!to) return;
+  setSyncBar('rankSyncBar','loading','載入中...');
+  try {
+    const data = await gasQuery(from, to);
+    if (!data.ok) { setSyncBar('rankSyncBar','err','載入失敗'); return; }
+    setSyncBar('rankSyncBar','ok','已載入 ✓');
+    const recs = data.records||[];
+    const days = getDays(from, to);
+    document.getElementById('rkTotalCnt').textContent = recs.length;
+    document.getElementById('rkTotalWt').textContent  = recs.reduce((s,r)=>s+(r.weight||0),0).toLocaleString()+'g';
+    document.getElementById('rkTotalAmt').textContent = '$'+recs.reduce((s,r)=>s+(r.amount||0),0).toLocaleString();
+    const fishMap = {};
+    recs.forEach(r=>{
+      if(!fishMap[r.fish]) fishMap[r.fish]={fish:r.fish,cnt:0,weight:0,amount:0,cookFee:0,ginger:0,miso:0,byDay:{}};
+      const f=fishMap[r.fish]; f.cnt++; f.weight+=(r.weight||0); f.amount+=(r.amount||0); f.cookFee+=(r.cookFee||0);
+      if(r.flavor==='ginger') f.ginger++; else f.miso++;
+      if(!f.byDay[r.date]) f.byDay[r.date]=0; f.byDay[r.date]++;
+    });
+    document.getElementById('rkFishTypes').textContent = Object.keys(fishMap).length+'種';
+    const list = Object.values(fishMap).sort((a,b)=>b[currentSortKey]-a[currentSortKey]);
+    const top3 = list.slice(0,3);
+    const chartLabels = days.map(dk=>{ const d=new Date(dk+'T00:00:00'); return (d.getMonth()+1)+'/'+(d.getDate()); });
+    const datasets = top3.map((f,i)=>({ label:f.fish, data:days.map(dk=>f.byDay[dk]||0), backgroundColor:PALETTE[i], borderRadius:3, stack:'s' }));
+    const rCtx = document.getElementById('rankTrendChart').getContext('2d');
+    if (rankTrendChartInst) rankTrendChartInst.destroy();
+    rankTrendChartInst = new Chart(rCtx,{ type:'bar', data:{labels:chartLabels,datasets}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{font:{size:10},boxWidth:10,padding:8}}},scales:{x:{grid:{display:false},ticks:{font:{size:10},maxTicksLimit:14,color:'#aaa'},stacked:true},y:{grid:{color:'#f0f0f0'},ticks:{font:{size:10},color:'#aaa',stepSize:1},stacked:true}}} });
+    const maxVal = list.length>0 ? list[0][currentSortKey] : 1;
+    const container = document.getElementById('rankList');
+    if (!list.length) { container.innerHTML='<div class="empty">區間內無資料</div>'; return; }
+    container.innerHTML = list.map((f,i)=>{
+      const pct = Math.round((f[currentSortKey]/maxVal)*100);
+      const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;
+      const rankCls = i===0?'top1':i===1?'top2':i===2?'top3':'';
+      const mainVal = currentSortKey==='weight'?f.weight.toLocaleString()+'g':currentSortKey==='amount'?'$'+f.amount.toLocaleString():f.cnt;
+      const mainLbl = currentSortKey==='cnt'?'筆':currentSortKey==='weight'?'重量':'金額';
+      const gPct = f.cnt>0?Math.round(f.ginger/f.cnt*100):0;
+      return `
+      <div class="rank-item" data-fish="${f.fish}" onclick="toggleFish('${f.fish}')">
+        <div class="rank-row">
+          <div class="rank-no ${rankCls}">${medal}</div>
+          <div class="rank-info">
+            <div class="rank-fish">${f.fish}</div>
+            <div class="rank-bar-wrap"><div class="rank-bar" style="width:${pct}%"></div></div>
+            <div class="rank-sub">
+              <span>${f.cnt}筆</span><span>${f.weight.toLocaleString()}g</span><span>$${f.amount.toLocaleString()}</span>
+              <span class="flavor-tag ft-ginger" style="padding:1px 6px;font-size:10px">薑 ${f.ginger}</span>
+              <span class="flavor-tag ft-miso" style="padding:1px 6px;font-size:10px">噌 ${f.miso}</span>
+            </div>
+          </div>
+          <div class="rank-nums"><div class="rank-cnt">${mainVal}</div><div class="rank-cnt-lbl">${mainLbl}</div></div>
+          <span class="expand-arrow">▾</span>
+        </div>
+        <div class="detail-panel">
+          <div class="detail-stats">
+            <div class="detail-stat"><div class="ds-val">${f.cnt}</div><div class="ds-lbl">總筆數</div></div>
+            <div class="detail-stat"><div class="ds-val">${f.weight.toLocaleString()}g</div><div class="ds-lbl">總重量</div></div>
+            <div class="detail-stat"><div class="ds-val">$${f.amount.toLocaleString()}</div><div class="ds-lbl">魚貨金額</div></div>
+            <div class="detail-stat"><div class="ds-val">$${f.cookFee.toLocaleString()}</div><div class="ds-lbl">代煮費</div></div>
+            <div class="detail-stat"><div class="ds-val">${f.cnt>0?Math.round(f.amount/f.cnt).toLocaleString():0}</div><div class="ds-lbl">均價/筆</div></div>
+            <div class="detail-stat"><div class="ds-val">${f.weight>0?Math.round(f.amount/f.weight*1000):0}</div><div class="ds-lbl">元/kg</div></div>
+          </div>
+          <div class="detail-flavor">
+            <div class="detail-flavor-bar"><span class="flavor-tag ft-ginger" style="padding:2px 8px">薑絲</span><span class="df-val">${f.ginger}筆 (${gPct}%)</span></div>
+            <div class="detail-flavor-bar"><span class="flavor-tag ft-miso" style="padding:2px 8px">味噌</span><span class="df-val">${f.miso}筆 (${100-gPct}%)</span></div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { setSyncBar('rankSyncBar','err','網路錯誤'); }
+}
+
+/* ── Init ── */
+(async()=>{
+  try{ const s=localStorage.getItem('fishuser'); if(s){ currentUser=s; document.getElementById('curUserDisplay').textContent=s; document.getElementById('nameModal').style.display='none'; } }catch(e){}
+  buildDpSelects();
+  setRange('r',30,null,'report-shortcuts');
+  setRange('rk',30,null,'rank-shortcuts');
+  await loadDayRecords();
+})();
+</script>
+</body>
+</html>
