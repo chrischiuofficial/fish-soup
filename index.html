@@ -205,6 +205,7 @@ canvas{width:100%!important}
     <button class="nav-btn active" onclick="showPage('record',this)">記錄</button>
     <button class="nav-btn" onclick="showPage('report',this)">報表</button>
     <button class="nav-btn" onclick="showPage('rank',this)">魚種排行</button>
+    <button class="nav-btn" onclick="showPage('history',this)">銷售查詢</button>
   </div>
 
   <!-- ── Record Page ── -->
@@ -348,6 +349,36 @@ canvas{width:100%!important}
   </div>
 
 </div>
+  <!-- ── History Page ── -->
+  <div class="page" id="page-history">
+    <div class="report-body">
+      <div class="range-shortcuts" id="history-shortcuts">
+        <button class="shortcut-btn active" onclick="setRange('h',7,this,'history-shortcuts')">近 7 天</button>
+        <button class="shortcut-btn" onclick="setRange('h',30,this,'history-shortcuts')">近 30 天</button>
+        <button class="shortcut-btn" onclick="setRange('h',90,this,'history-shortcuts')">近 90 天</button>
+      </div>
+      <div class="range-row">
+        <div class="form-group"><label>開始日期</label><input type="date" id="hFrom"></div>
+        <div class="form-group"><label>結束日期</label><input type="date" id="hTo"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>職號篩選（空白=全部）</label>
+        <input type="text" id="hStaff" placeholder="輸入職號" inputmode="numeric" style="padding:9px 12px;border:1px solid #ddd;border-radius:10px;font-size:14px;width:100%;outline:none">
+      </div>
+      <button class="update-btn" onclick="buildHistory()">查詢</button>
+      <div id="historySyncBar" class="sync-bar" style="display:none"></div>
+
+      <!-- 切換顯示模式 -->
+      <div class="sort-tabs" style="margin-bottom:14px">
+        <button class="sort-tab active" id="hModeList" onclick="switchHMode('list',this)">每筆明細</button>
+        <button class="sort-tab" id="hModeGroup" onclick="switchHMode('group',this)">依日期分組</button>
+      </div>
+
+      <div id="historyResult"></div>
+    </div>
+  </div>
+
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -461,6 +492,7 @@ function showPage(name, btn) {
   btn.classList.add('active');
   if (name==='report') { setRange('r',30,null,'report-shortcuts'); buildReport(); }
   if (name==='rank')   { setRange('rk',30,null,'rank-shortcuts'); buildRank(); }
+  if (name==='history') { setRange('h',7,null,'history-shortcuts'); }
 }
 
 /* ── Name ── */
@@ -762,6 +794,92 @@ async function buildRank() {
       </div>`;
     }).join('');
   } catch(e) { setSyncBar('rankSyncBar','err','網路錯誤'); }
+}
+
+
+/* ── History ── */
+let hMode = 'list';
+let hRecords = [];
+
+function switchHMode(mode, btn) {
+  hMode = mode;
+  document.querySelectorAll('.sort-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderHistory();
+}
+
+async function buildHistory() {
+  const from  = document.getElementById('hFrom').value;
+  const to    = document.getElementById('hTo').value;
+  const staff = document.getElementById('hStaff').value.trim();
+  if (!from || !to) return;
+  setSyncBar('historySyncBar','loading','載入中...');
+  try {
+    const data = await gasQuery(from, to);
+    if (!data.ok) { setSyncBar('historySyncBar','err','載入失敗'); return; }
+    setSyncBar('historySyncBar','ok','已載入 ✓');
+    hRecords = (data.records || []).filter(r => !staff || String(r.staff) === String(staff));
+    renderHistory();
+  } catch(e) { setSyncBar('historySyncBar','err','網路錯誤'); }
+}
+
+function renderHistory() {
+  const container = document.getElementById('historyResult');
+  if (!hRecords.length) { container.innerHTML='<div class="empty">查無資料</div>'; return; }
+
+  if (hMode === 'list') {
+    // 每筆明細，最新在前
+    const sorted = hRecords.slice().sort((a,b) => b.id - a.id);
+    container.innerHTML = sorted.map(r => `
+      <div class="record-item">
+        <div class="record-top">
+          <span class="record-fish">${r.fish}</span>
+          <div class="record-meta">
+            <span class="flavor-tag ${r.flavor==='ginger'?'ft-ginger':'ft-miso'}">${r.flavor==='ginger'?'薑絲':'味噌'}</span>
+            <span class="record-time">${r.time||''}</span>
+          </div>
+        </div>
+        <div class="record-details">
+          <div>重量 <span>${(r.weight||0).toLocaleString()}g</span></div>
+          <div>金額 <span>$${(r.amount||0).toLocaleString()}</span></div>
+          <div>代煮費 <span>$${(r.cookFee||0).toLocaleString()}</span></div>
+        </div>
+        <div class="record-footer">
+          <span class="record-staff">${r.date} ／ 職號：${r.staff||'—'}</span>
+        </div>
+      </div>`).join('');
+  } else {
+    // 依日期分組
+    const byDate = {};
+    hRecords.forEach(r => { if(!byDate[r.date]) byDate[r.date]=[]; byDate[r.date].push(r); });
+    const dates = Object.keys(byDate).sort().reverse();
+    container.innerHTML = dates.map(date => {
+      const recs = byDate[date];
+      const totalFee = recs.reduce((s,r)=>s+(r.cookFee||0),0);
+      const totalAmt = recs.reduce((s,r)=>s+(r.amount||0),0);
+      const totalWt  = recs.reduce((s,r)=>s+(r.weight||0),0);
+      const rows = recs.slice().sort((a,b)=>b.id-a.id).map(r=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5">
+          <div>
+            <span style="font-weight:600;color:#1a1a1a">${r.fish}</span>
+            <span class="flavor-tag ${r.flavor==='ginger'?'ft-ginger':'ft-miso'}" style="margin-left:6px">${r.flavor==='ginger'?'薑絲':'味噌'}</span>
+          </div>
+          <div style="font-size:12px;color:#888;text-align:right">
+            ${(r.weight||0)}g ／ $${(r.amount||0)} ／ 煮$${(r.cookFee||0)}<br>
+            <span style="font-size:11px">職號:${r.staff||'—'} ${r.time||''}</span>
+          </div>
+        </div>`).join('');
+      return `
+        <div class="record-item" style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:13px;font-weight:700;color:#0F6E56">${date}</span>
+            <span style="font-size:11px;color:#888">${recs.length}筆 ／ 代煮費$${totalFee.toLocaleString()}</span>
+          </div>
+          <div style="font-size:11px;color:#aaa;margin-bottom:8px">魚貨$${totalAmt.toLocaleString()} ／ 總重${totalWt.toLocaleString()}g</div>
+          ${rows}
+        </div>`;
+    }).join('');
+  }
 }
 
 /* ── Init ── */
