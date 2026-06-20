@@ -509,7 +509,7 @@ function renderRecord() {
   const list = document.getElementById('recordsList');
   if (!recs.length) { list.innerHTML='<div class="empty">這天尚無記錄</div>'; return; }
   list.innerHTML = recs.map(r => {
-    const isOwner = r.staff === currentUser;
+    const isOwner = String(r.staff) === String(currentUser);
     const editCls = isOwner ? 'edit-btn' : 'edit-btn btn-disabled';
     const delCls  = isOwner ? 'del-btn'  : 'del-btn btn-disabled';
     const editAct = isOwner ? `openEditModal('${r.id}','${r.fish}','${r.flavor}',${r.weight},${r.amount},${r.cookFee},'${r.staff}')` : "showToast('只有 '+`${r.staff}`+' 才能修改這筆')";
