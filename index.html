@@ -362,10 +362,27 @@ let trendChartInst = null, rankTrendChartInst = null;
 let currentSortKey = 'cnt', expandedFish = null;
 
 /* ── API ── */
-async function gasCall(params) {
-  const qs = Object.entries(params).map(([k,v])=>encodeURIComponent(k)+'='+encodeURIComponent(v)).join('&');
-  const res = await fetch(GAS_URL+'?'+qs);
-  return res.json();
+function gasCall(params) {
+  return new Promise((resolve, reject) => {
+    const cbName = 'cb_' + Date.now();
+    const qs = Object.entries({...params, callback: cbName})
+      .map(([k,v])=>encodeURIComponent(k)+'='+encodeURIComponent(v)).join('&');
+    const script = document.createElement('script');
+    const timer = setTimeout(() => {
+      delete window[cbName];
+      document.body.removeChild(script);
+      reject(new Error('timeout'));
+    }, 15000);
+    window[cbName] = (data) => {
+      clearTimeout(timer);
+      delete window[cbName];
+      document.body.removeChild(script);
+      resolve(data);
+    };
+    script.src = GAS_URL + '?' + qs;
+    script.onerror = () => { clearTimeout(timer); reject(new Error('script error')); };
+    document.body.appendChild(script);
+  });
 }
 async function gasQuery(from, to) {
   return gasCall({ action:'query', from, to });
